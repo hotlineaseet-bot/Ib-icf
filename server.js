@@ -5,6 +5,14 @@ const PORT = process.env.PORT || 8080;
 app.use(express.json({ limit: '2mb' }));
 app.use(express.static(__dirname));
 
+app.use((req, res, next) => {
+    res.header('Access-Control-Allow-Origin', '*');
+    res.header('Access-Control-Allow-Methods', 'GET, POST, DELETE, OPTIONS');
+    res.header('Access-Control-Allow-Headers', 'Content-Type');
+    if (req.method === 'OPTIONS') return res.sendStatus(200);
+    next();
+});
+
 const BIN_ID = process.env.JSONBIN_ID || '69a2940f43b1c97be9a5bb40';
 const MASTER_KEY = process.env.JSONBIN_KEY || '$2a$10$mmTSmzLSMhC.Iu/LuCseZO63vwObqPGDJcdxFV1Ou1r1GjKmsdya6';
 const BIN_URL = `https://api.jsonbin.io/v3/b/${BIN_ID}`;
