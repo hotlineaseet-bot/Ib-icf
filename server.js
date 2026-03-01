@@ -17,10 +17,9 @@ const BIN_ID = process.env.JSONBIN_ID || '69a2940f43b1c97be9a5bb40';
 const MASTER_KEY = process.env.JSONBIN_KEY || '$2a$10$mmTSmzLSMhC.Iu/LuCseZO63vwObqPGDJcdxFV1Ou1r1GjKmsdya6';
 const BIN_URL = `https://api.jsonbin.io/v3/b/${BIN_ID}`;
 
-// ===== КЭШ В ПАМЯТИ =====
 let cache = null;
 let cacheTime = 0;
-const CACHE_TTL = 30000; // 30 секунд
+const CACHE_TTL = 30000;
 
 async function readDB() {
     const now = Date.now();
@@ -45,7 +44,6 @@ async function writeDB(db) {
     });
 }
 
-// ===== AUTH =====
 app.post('/api/dir/register', async (req, res) => {
     try {
         const { username, password } = req.body;
@@ -72,7 +70,6 @@ app.post('/api/dir/login', async (req, res) => {
     } catch(e) { res.status(500).json({ success: false, error: 'Ошибка сервера' }); }
 });
 
-// ===== TRACKS =====
 app.post('/api/dir/tracks', async (req, res) => {
     try {
         const { userId, title, artist, url } = req.body;
@@ -113,7 +110,6 @@ app.delete('/api/dir/tracks/:id', async (req, res) => {
     } catch(e) { res.status(500).json({ success: false, error: 'Ошибка сервера' }); }
 });
 
-// ===== FAVORITES =====
 app.post('/api/dir/favorites', async (req, res) => {
     try {
         const { userId, trackId } = req.body;
@@ -129,7 +125,6 @@ app.post('/api/dir/favorites', async (req, res) => {
     } catch(e) { res.status(500).json({ success: false, error: 'Ошибка сервера' }); }
 });
 
-// ===== ARTISTS =====
 app.get('/api/dir/artists', async (req, res) => {
     try {
         const db = await readDB();
@@ -137,6 +132,22 @@ app.get('/api/dir/artists', async (req, res) => {
         db.tracks.forEach(t => { if (!artists[t.artist]) artists[t.artist] = 0; artists[t.artist]++; });
         res.json(Object.entries(artists).map(([name, count]) => ({ name, count })).sort((a,b) => b.count - a.count));
     } catch(e) { res.json([]); }
+});
+
+// ===== DOWNLOAD PROXY =====
+app.get('/api/dir/download', async (req, res) => {
+    try {
+        const url = decodeURIComponent(req.query.url || '');
+        const name = decodeURIComponent(req.query.name || 'track.mp3');
+        if (!url) return res.status(400).send('No URL');
+        const r = await fetch(url, { headers: { 'User-Agent': 'Mozilla/5.0' } });
+        if (!r.ok) return res.status(502).send('Fetch failed: ' + r.status);
+        res.setHeader('Content-Disposition', `attachment; filename="${name}"`);
+        res.setHeader('Content-Type', 'audio/mpeg');
+        res.setHeader('Access-Control-Allow-Origin', '*');
+        const buf = await r.arrayBuffer();
+        res.send(Buffer.from(buf));
+    } catch(e) { res.status(500).send('Error: ' + e.message); }
 });
 
 function convertUrl(url) {
